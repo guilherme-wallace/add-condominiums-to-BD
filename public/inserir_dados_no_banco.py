@@ -7,8 +7,8 @@ def inserir_dados_no_banco(arquivo_csv, nome_da_tabela):
     configuracao_db = configuracao_dbIntranet
     conexao = pymysql.connect(**configuracao_db)
 
-    # Lista para armazenar os nomes dos condomínios inseridos
-    condominios_inseridos = []
+    # Lista para armazenar os nomes dos condomínios processados
+    condominios_processados = {"inseridos": [], "atualizados": []}
 
     try:
         with conexao.cursor() as cursor:
@@ -16,14 +16,14 @@ def inserir_dados_no_banco(arquivo_csv, nome_da_tabela):
             with open(arquivo_csv, 'r', encoding='utf-8') as csvfile:
                 leitor_csv = csv.DictReader(csvfile)
 
-                # Inserindo cada linha no banco de dados somente se o condomínio não existir
+                # Processando cada linha do CSV
                 for linha in leitor_csv:
                     # Verifica se o condomínio já existe
-                    query_verificacao = f"SELECT COUNT(*) FROM {nome_da_tabela} WHERE condominioId = %s"
+                    query_verificacao = f"SELECT condominio, cidadeId, endereco, numero, cep, bairro FROM {nome_da_tabela} WHERE condominioId = %s"
                     cursor.execute(query_verificacao, (linha['id'],))
                     resultado = cursor.fetchone()
 
-                    if resultado[0] == 0:  # Se o condomínio não existir
+                    if not resultado:  # Se o condomínio não existir
                         # Insere no banco de dados
                         query_insercao = f"""
                         INSERT INTO {nome_da_tabela} (condominioId, condominio, cidadeId, endereco, numero, cep, bairro)
@@ -38,30 +38,61 @@ def inserir_dados_no_banco(arquivo_csv, nome_da_tabela):
                             linha['cep'],
                             linha['bairro']
                         ))
-                        # Adiciona o nome do condomínio à lista
-                        condominios_inseridos.append(linha['condominio'])
+                        condominios_processados["inseridos"].append(linha['condominio'])
+                    else:  # Se o condomínio já existir
+                        # Verifica se há diferenças nos dados
+                        dados_banco = dict(zip(["condominio", "cidadeId", "endereco", "numero", "cep", "bairro"], resultado))
+                        dados_csv = {
+                            "condominio": linha["condominio"],
+                            "cidadeId": linha["id_cidade"],
+                            "endereco": linha["endereco"],
+                            "numero": linha["numero"],
+                            "cep": linha["cep"],
+                            "bairro": linha["bairro"]
+                        }
 
-            # Confirmando as inserções
+                        if dados_banco != dados_csv:  # Atualiza se os dados forem diferentes
+                            query_atualizacao = f"""
+                            UPDATE {nome_da_tabela}
+                            SET condominio = %s, cidadeId = %s, endereco = %s, numero = %s, cep = %s, bairro = %s
+                            WHERE condominioId = %s
+                            """
+                            cursor.execute(query_atualizacao, (
+                                linha['condominio'],
+                                linha['id_cidade'],
+                                linha['endereco'],
+                                linha['numero'],
+                                linha['cep'],
+                                linha['bairro'],
+                                linha['id']
+                            ))
+                            condominios_processados["atualizados"].append(linha['condominio'])
+
             conexao.commit()
 
     except Exception as e:
-        print(f"Erro ao inserir dados: {e}")
+        print(f"Erro ao inserir ou atualizar dados: {e}")
 
     finally:
         # Fechando a conexão com o banco de dados
         conexao.close()
 
-    # Exibe os condomínios que foram inseridos
-    if condominios_inseridos:
-        resposta_for_log = "Condomínios inseridos no banco de dados:\n"
-        resposta_for_log += "\n".join(f"- {condominio}" for condominio in condominios_inseridos)
-        print ("Condomínio inserido no banco de dados:\n", resposta_for_log)
-    else:
-        resposta_for_log = "Nenhum novo condomínio foi inserido."
-        print("Nenhum novo condomínio foi inserido.")
+    # Exibe os condomínios que foram processados
+    resposta_for_log = ""
+    if condominios_processados["inseridos"]:
+        resposta_for_log += "Condomínios inseridos no banco de dados:\n"
+        resposta_for_log += "\n".join(f"- {condominio}" for condominio in condominios_processados["inseridos"])
+    if condominios_processados["atualizados"]:
+        if resposta_for_log:
+            resposta_for_log += "\n\n"
+        resposta_for_log += "Condomínios atualizados no banco de dados:\n"
+        resposta_for_log += "\n".join(f"- {condominio}" for condominio in condominios_processados["atualizados"])
+    if not resposta_for_log:
+        resposta_for_log = "Nenhum novo condomínio foi inserido ou atualizado."
 
+    print(resposta_for_log)
     return resposta_for_log
 
 # Exemplo de chamada da função
-# resposta = inserir_dados_no_banco('dados.csv', 'condominio')
+# resposta = inserir_ou_atualizar_dados_no_banco('dados.csv', 'condominio')
 # print(resposta)
