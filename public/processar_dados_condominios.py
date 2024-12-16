@@ -3,7 +3,6 @@ import csv
 
 def processar_dados_condominios(pegacondsResultado, condsRegistrados, dadosFiltradosArquivo, arquivo_saida_formata):
     
-    # 1ª Etapa: Leitura do arquivo inicial e conversão para JSON
     with open(pegacondsResultado, 'r', encoding='utf-8') as arquivo:
         pegacondsResultadoConteudo = arquivo.read()
 
@@ -11,13 +10,11 @@ def processar_dados_condominios(pegacondsResultado, condsRegistrados, dadosFiltr
     dados = json.loads(respostaPegacondsResultado)
     registros = dados.get('registros', [])
 
-    # Salvar registros no arquivo JSON
     registros_json = json.dumps(registros, indent=4, ensure_ascii=False)
     with open(condsRegistrados, 'w', encoding='utf-8') as arquivo:
         arquivo.write(registros_json)
     print(f"Os registros foram salvos em {condsRegistrados}.")
 
-    # 2ª Etapa: Filtragem dos dados e salvamento em outro arquivo JSON
     with open(condsRegistrados, 'r', encoding='utf-8') as arquivo:
         dados_json = json.load(arquivo)
 
@@ -39,7 +36,6 @@ def processar_dados_condominios(pegacondsResultado, condsRegistrados, dadosFiltr
         arquivo.write(dadosFiltrados_json)
     print(f"Os dados filtrados foram salvos em {dadosFiltradosArquivo}.")
 
-    # 3ª Etapa: Conversão dos dados filtrados para CSV
     with open(dadosFiltradosArquivo, 'r', encoding='utf-8') as arquivo:
         dados_json = json.load(arquivo)
 

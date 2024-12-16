@@ -2,17 +2,14 @@ import mysql.connector
 import json
 from route.dadosDeconexao import configuracao_dbIntranet
 
-#Qual estrutura será consultada?
 tecnologia_id = 4
 arquivo_saida='resultadoConsultaBanco.json'
 
 def consultar_dados(arquivo_saida, tecnologia_id):
-    # Conexão com o banco de dados
     configuracao_db = configuracao_dbIntranet
     conn = mysql.connector.connect(**configuracao_db)
     cursor = conn.cursor(dictionary=True)
 
-    # Query SQL para buscar os dados
     query = f"""
     SELECT DISTINCT
         c.condominioId,
@@ -35,19 +32,15 @@ def consultar_dados(arquivo_saida, tecnologia_id):
         t.technologyId = {tecnologia_id};
     """
 
-    # Executando a consulta
     cursor.execute(query)
     results = cursor.fetchall()
 
-    # Fechando conexão com o banco de dados
     cursor.close()
     conn.close()
 
-    # Salvando o resultado em um arquivo JSON
     with open(arquivo_saida, 'w', encoding='utf-8') as json_file:
         json.dump(results, json_file, ensure_ascii=False, indent=4)
 
     print(f"Consulta realizada e resultado salvo em '{arquivo_saida}'.")
 
-# Chamada da função
 consultar_dados(arquivo_saida, tecnologia_id)
